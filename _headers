@@ -1,0 +1,20 @@
+# Cloudflare Pages — cache control
+# HTML: never trust the cache, always revalidate (so deploys show up immediately).
+# JS/CSS: short browser cache; CDN edge cache is purged per-deployment anyway.
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: interest-cohort=()
+
+/index.html
+  Cache-Control: public, max-age=0, must-revalidate
+
+/*.html
+  Cache-Control: public, max-age=0, must-revalidate
+
+/*.js
+  Cache-Control: public, max-age=3600, must-revalidate
+
+/*.css
+  Cache-Control: public, max-age=3600, must-revalidate

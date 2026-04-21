@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>History Atlas · Skyline</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Noto+Serif+SC:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ========== HERO ========== -->
+  <div class="hero" id="hero">
+    <div class="hero-inner">
+      <div class="hero-kicker" data-i18n="hero_kicker">世界文明影像年鉴</div>
+      <div class="hero-ornament"><span>✦</span></div>
+      <h1 class="hero-title">
+        <em data-i18n="hero_title_a">历史</em>
+        <span data-i18n="hero_title_b">天际线</span>
+      </h1>
+      <div class="hero-title-zh">世 界 历 史 天 际 线</div>
+      <p class="hero-desc" data-i18n="hero_desc">五千年间，五十个文明并肩起落。这不是一条时间线，而是一道天际线——彼此交叠的王朝，各自攀上又褪下的巅峰。</p>
+      <button class="hero-enter" id="heroEnter" data-i18n="hero_cta">进入图册</button>
+    </div>
+  </div>
+
+  <!-- ========== MASTHEAD ========== -->
+  <header class="masthead">
+    <div class="mast-title">
+      <div class="mast-mark">
+        <em data-i18n="mm_a">历史</em>
+        <span data-i18n="mm_b">天际线</span>
+      </div>
+      <div class="mast-sub" data-i18n="mm_sub">世界文明之天际 · 公元前 3500 — 2025</div>
+    </div>
+    <div class="mast-tools">
+      <div class="search-wrap">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2">
+          <circle cx="5" cy="5" r="3.5"></circle>
+          <path d="M7.5 7.5 10 10"></path>
+        </svg>
+        <input type="search" id="searchInput" name="ha_civ_query"
+               placeholder="搜索文明 / 王朝…" data-i18n-ph="search_ph"
+               autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+               aria-autocomplete="list">
+        <div class="search-results" id="searchResults"></div>
+      </div>
+      <div class="mast-divider"></div>
+      <div class="filter-region" id="regionFilter">
+        <button data-region="all" class="active">全部</button>
+        <button data-region="eastasia">东亚</button>
+        <button data-region="southasia">南亚</button>
+        <button data-region="westasia">西亚</button>
+        <button data-region="europe">欧洲</button>
+        <button data-region="africa">非洲</button>
+        <button data-region="americas">美洲</button>
+      </div>
+      <div class="mast-divider"></div>
+      <div class="zoom-btns">
+        <button id="zoomIn" title="Zoom in">+</button>
+        <button id="zoomOut" title="Zoom out">−</button>
+        <button id="resetView" title="Reset">◇</button>
+        <button id="tweaksToggle" title="微调">⚙</button>
+      </div>
+      <div class="mast-divider"></div>
+      <div class="kbd-hints" id="kbdHints" aria-label="Keyboard shortcuts">
+        <span class="kbd-row"><span class="kbd-desc" data-i18n="kbd_hint_scroll_x">横向滚动</span><kbd>⇧</kbd><kbd>↕</kbd></span>
+        <span class="kbd-row"><span class="kbd-desc" data-i18n="kbd_hint_zoom">缩放</span><kbd class="kbd-mod">⌘ / Ctrl</kbd><kbd>↕</kbd></span>
+        <span class="kbd-row"><span class="kbd-desc" data-i18n="kbd_hint_arrows">方向平移</span><kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd></span>
+      </div>
+      <div class="mast-divider"></div>
+      <div class="lang-switch">
+        <button data-lang="zh" class="active">中</button>
+        <button data-lang="en">EN</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ========== STAGE ========== -->
+  <div class="stage" id="stage">
+    <div class="stage-inner" id="stageInner"></div>
+    <div id="regionLabels"></div>
+    <div class="now-indicator" id="nowIndicator"></div>
+    <div class="now-year" id="nowYear"></div>
+  </div>
+
+  <!-- ========== TIMELINE AXIS ========== -->
+  <div class="timeline-axis" id="timelineAxis">
+    <div class="axis-scroll" id="axisScroll"></div>
+  </div>
+
+  <!-- ========== TWEAKS PANEL ========== -->
+  <div class="tweaks open" id="tweaks">
+    <button class="tw-close" id="tweaksClose" title="收起">✕</button>
+    <div class="tw-title" data-i18n="tweaks_title">微调</div>
+
+    <div class="tw-group">
+      <span class="tw-label" data-i18n="tw_view">视图</span>
+      <div class="tw-options" data-tw="view">
+        <button data-val="spine" data-i18n="tw_spine" class="active">脊柱</button>
+        <button data-val="ridge" data-i18n="tw_ridge">山脉</button>
+        <button data-val="swimlane" data-i18n="tw_swim">泳道</button>
+      </div>
+    </div>
+
+    <div class="tw-group">
+      <span class="tw-label" data-i18n="tw_theme">视觉风格</span>
+      <div class="tw-options" data-tw="theme">
+        <button data-val="archival" data-i18n="tw_archival" class="active">古籍风</button>
+        <button data-val="modern" data-i18n="tw_modern">现代风</button>
+      </div>
+    </div>
+
+    <div class="tw-group">
+      <span class="tw-label" data-i18n="tw_density">时间密度</span>
+      <div class="tw-options" data-tw="density">
+        <button data-val="compact" data-i18n="tw_compact">紧凑</button>
+        <button data-val="normal" data-i18n="tw_normal" class="active">标准</button>
+        <button data-val="open" data-i18n="tw_open">舒展</button>
+      </div>
+    </div>
+
+    <div class="tw-group">
+      <span class="tw-label" data-i18n="tw_events">全球事件</span>
+      <div class="tw-options" data-tw="events">
+        <button data-val="on" data-i18n="tw_on" class="active">开</button>
+        <button data-val="off" data-i18n="tw_off">关</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== DETAIL PANEL ========== -->
+  <aside class="detail-panel" id="detailPanel">
+    <div class="dp-inner">
+      <button class="dp-close" id="dpClose">✕</button>
+      <div class="dp-kicker" id="dpKicker"></div>
+      <h2 class="dp-title" id="dpTitle"></h2>
+      <div class="dp-title-en" id="dpTitleEn"></div>
+      <div class="dp-bar" id="dpBar"></div>
+      <dl class="dp-meta-grid">
+        <dt data-i18n="dp_dates">年代</dt><dd class="dates" id="dpDates"></dd>
+        <dt data-i18n="dp_duration">持续</dt><dd id="dpDuration"></dd>
+        <dt data-i18n="dp_region">区域</dt><dd id="dpRegion"></dd>
+        <dt data-i18n="dp_influence">影响力</dt><dd id="dpInfluence"></dd>
+      </dl>
+      <div class="dp-section-h" data-i18n="dp_overview">概述</div>
+      <div class="dp-desc" id="dpDesc"></div>
+      <div class="dp-section-h" data-i18n="dp_ach">代表成就</div>
+      <div class="dp-ach" id="dpAch"></div>
+      <div class="dp-section-h" data-i18n="dp_concurrent">此时此刻的世界</div>
+      <div class="dp-concurrent" id="dpConcurrent"></div>
+    </div>
+  </aside>
+
+  <div class="tooltip" id="tooltip"></div>
+
+  <!-- ========== DATA & APP ========== -->
+  <script>
+    window.TWEAKS = {
+      theme: 'archival',
+      density: 'normal',
+      events: 'on',
+      lang: 'zh',
+      view: 'spine'
+    };
+    (function(){
+      // Cache-bust only on localhost / 127.0.0.1 — production should use normal browser caching.
+      var isDev = location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.protocol === 'file:';
+      var suffix = isDev ? ('?t=' + Date.now()) : '';
+      var load = function(src){
+        return new Promise(function(res){
+          var s = document.createElement('script');
+          s.src = src + suffix;
+          s.onload = res;
+          document.body.appendChild(s);
+        });
+      };
+      load('data.js').then(function(){ return load('app.js'); });
+    })();
+  </script>
+</body>
+</html>
