@@ -96,7 +96,7 @@ const STR = {
   en: {
     hero_kicker: 'A Visual Almanac of Civilizations',
     hero_title_a: 'History', hero_title_b: 'Atlas',
-    hero_title_zh_sub: 'W O R L D   H I S T O R Y   S K Y L I N E',
+    hero_title_zh_sub: 'A Skyline of World History',
     hero_desc: 'Fifty civilizations rising and falling in parallel across five thousand years. Not a timeline, but a skyline — of kingdoms whose lives overlapped, whose peaks rose and faded together.',
     hero_cta: 'Enter the Atlas',
     mm_a: 'History', mm_b: 'Atlas',
@@ -1834,6 +1834,15 @@ document.addEventListener('touchstart', e => {
   if (e.touches.length !== 1) { _touch.active = false; return; }
   const t = e.touches[0];
   if (!_touchInStage(t)) return;
+  // Do NOT capture touches on interactive overlays. `e.preventDefault()` below
+  // prevents iOS from synthesizing the click event, which would break the
+  // "进入图册" hero button, masthead controls, tweaks panel, detail-panel
+  // actions, etc. (Cost of this earlier: users on iPhone couldn't even enter
+  // the atlas.) Keep this list in sync with any new top-level overlay.
+  if (e.target.closest(
+      'button, a, input, select, textarea, label,' +
+      ' .hero, .masthead, .tweaks, .detail-panel, .minimap, .search-results'
+  )) return;
   // Look up the actual hit element (e.target is stale under some iOS Safari
   // builds when touches originate on transformed/absolutely-positioned kids).
   const hit = document.elementFromPoint(t.clientX, t.clientY) || e.target;

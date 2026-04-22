@@ -1103,6 +1103,16 @@ body[data-theme='modern'] .hero-title em { font-style: normal; font-weight: 500;
   margin-bottom: 32px;
   font-weight: 400;
 }
+/* English subtitle reads as a phrase, not ornamental tracking. Italic + subtle
+   tracking sits closer to the EB Garamond / magazine-standfirst feel we want,
+   and — crucially — it can't wrap mid-word the way "W O R L D   H I S T O R Y"
+   did once HTML collapsed its triple-spaces. */
+html[lang="en"] .hero-title-zh {
+  letter-spacing: 0.14em;
+  font-style: italic;
+  font-size: 19px;
+  text-transform: none;
+}
 .hero-desc {
   font-family: var(--serif);
   font-size: 16px;
@@ -1342,16 +1352,19 @@ body[data-theme='modern'] .spine-zero span {
   opacity: 0.65;
 }
 /* English era labels ("AGE OF EXPLORATION", "CLASSICAL EMPIRES", …) are ~4x
-   wider than the Chinese equivalents. Tighten tracking + allow a 2-line wrap
-   so they stop overlapping the year-indicator on the center spine. */
+   wider than the Chinese equivalents. Keep them single-line (a 2-line wrap
+   was sandwiching the year-indicator box between the words) but dial down
+   font-size + tracking so the long ones ("INDUSTRIAL AGE", "AGE OF
+   EXPLORATION") still clear the ~110px spine corridor. Push further up so
+   the baseline sits clearly above the year marker. */
 html[lang="en"] .spine-era {
-  letter-spacing: 0.14em;
-  white-space: normal;
-  line-height: 1.18;
+  white-space: nowrap;
+  font-size: 8.5px;
+  letter-spacing: 0.08em;
+  line-height: 1;
   text-align: center;
-  max-width: 150px;
-  /* Keep the baseline sitting above the year mark the same way as Chinese */
-  transform: translate(-50%, calc(-100% - 4px));
+  max-width: none;
+  transform: translate(-50%, calc(-50% - 26px));
 }
 body[data-theme='modern'] .spine-era {
   font-family: var(--sans);
