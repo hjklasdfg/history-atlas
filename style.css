@@ -1341,6 +1341,18 @@ body[data-theme='modern'] .spine-zero span {
   pointer-events: none;
   opacity: 0.65;
 }
+/* English era labels ("AGE OF EXPLORATION", "CLASSICAL EMPIRES", …) are ~4x
+   wider than the Chinese equivalents. Tighten tracking + allow a 2-line wrap
+   so they stop overlapping the year-indicator on the center spine. */
+html[lang="en"] .spine-era {
+  letter-spacing: 0.14em;
+  white-space: normal;
+  line-height: 1.18;
+  text-align: center;
+  max-width: 150px;
+  /* Keep the baseline sitting above the year mark the same way as Chinese */
+  transform: translate(-50%, calc(-100% - 4px));
+}
 body[data-theme='modern'] .spine-era {
   font-family: var(--sans);
   font-style: normal;
@@ -1573,6 +1585,18 @@ body[data-theme='modern'] .leaf-dates {
   opacity: 0.88;
   transition: color 0.18s ease, opacity 0.18s ease;
 }
+/* English event labels ("Zhu Yuanzhang founds the Ming dynasty", "Columbus
+   reaches the Americas", …) don't fit the 174px Chinese cap. Give them more
+   horizontal room and allow a 2-line wrap with a clean clamp. */
+html[lang="en"] .sev-label {
+  white-space: normal;
+  max-width: 240px;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  text-overflow: clip;
+}
 .sev-label em {
   font-family: var(--mono);
   font-style: normal;
@@ -1627,6 +1651,15 @@ body[data-theme='modern'] .sev-label em {
   text-transform: uppercase;
   color: var(--ink-3);
   margin-top: 2px;
+}
+/* English column headers ("Byzantium · Ottoman", "North America") need a
+   slightly tighter treatment so they don't clip column edges. */
+html[lang="en"] .sch-primary {
+  font-size: 12.5px;
+  letter-spacing: 0.04em;
+}
+html[lang="en"] .sch-secondary {
+  letter-spacing: 0.18em;
 }
 body[data-theme='modern'] .sch-primary {
   font-family: var(--sans);

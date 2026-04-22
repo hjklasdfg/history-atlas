@@ -1818,10 +1818,26 @@ window.addEventListener('pointercancel', _endMousePan);
 // fight a two-finger pinch (browser won't zoom either, since touch-action:none,
 // but we just ignore multi-touch rather than interpret it).
 const _touch = { active: false, sx: 0, sy: 0, ox: 0, oy: 0, moved: false };
-stage.addEventListener('touchstart', e => {
+// Touch listeners attach to `document` (not `stage`). On iOS Safari, listeners
+// attached to non-root elements can silently miss touches when the target has
+// complex stacking / transforms underneath — attaching to document guarantees
+// delivery, and we filter by whether the touch is inside the stage below.
+// `touch-action: none` is moved onto <html> / <body> on mobile so the browser
+// never converts the gesture to a page-scroll.
+function _touchInStage(t) {
+  if (!t) return false;
+  const r = stage.getBoundingClientRect();
+  return t.clientX >= r.left && t.clientX <= r.right &&
+         t.clientY >= r.top  && t.clientY <= r.bottom;
+}
+document.addEventListener('touchstart', e => {
   if (e.touches.length !== 1) { _touch.active = false; return; }
   const t = e.touches[0];
-  if (_excludedDragTarget(e.target)) return;
+  if (!_touchInStage(t)) return;
+  // Look up the actual hit element (e.target is stale under some iOS Safari
+  // builds when touches originate on transformed/absolutely-positioned kids).
+  const hit = document.elementFromPoint(t.clientX, t.clientY) || e.target;
+  if (_excludedDragTarget(hit)) return;
   e.preventDefault();
   _touch.active = true;
   _touch.moved = false;
@@ -1833,7 +1849,7 @@ stage.addEventListener('touchstart', e => {
   state.dragMoved = false;
   document.body.classList.add('is-panning');
 }, { passive: false });
-stage.addEventListener('touchmove', e => {
+document.addEventListener('touchmove', e => {
   if (!_touch.active || e.touches.length !== 1) return;
   e.preventDefault();
   const t = e.touches[0];
@@ -1856,8 +1872,8 @@ function _endTouchPan() {
   state.dragMoved = false;
   document.body.classList.remove('is-panning');
 }
-stage.addEventListener('touchend', _endTouchPan);
-stage.addEventListener('touchcancel', _endTouchPan);
+document.addEventListener('touchend', _endTouchPan);
+document.addEventListener('touchcancel', _endTouchPan);
 
 stage.addEventListener('wheel', e => {
   e.preventDefault();
@@ -2077,11 +2093,17 @@ document.querySelectorAll('.lang-switch button').forEach(b => {
   });
 });
 function applyI18n() {
+  // Defensive: if a key is missing from the dictionary (e.g. a stale JS
+  // cache is loading alongside fresher HTML that added a new key), leave the
+  // existing HTML text alone rather than exposing the raw key name.
+  const dict = STR[state.lang] || {};
   document.querySelectorAll('[data-i18n]').forEach(el => {
-    el.textContent = t(el.dataset.i18n);
+    const k = el.dataset.i18n;
+    if (Object.prototype.hasOwnProperty.call(dict, k)) el.textContent = dict[k];
   });
   document.querySelectorAll('[data-i18n-ph]').forEach(el => {
-    el.placeholder = t(el.dataset.i18nPh);
+    const k = el.dataset.i18nPh;
+    if (Object.prototype.hasOwnProperty.call(dict, k)) el.placeholder = dict[k];
   });
   document.documentElement.lang = state.lang === 'zh' ? 'zh-CN' : 'en';
 }

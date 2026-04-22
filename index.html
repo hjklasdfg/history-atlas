@@ -10,7 +10,13 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Noto+Serif+SC:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <!-- style.css cache-busted via inline swap below so fresh deploys land immediately -->
+  <script>(function(){
+    var l = document.createElement('link');
+    l.rel = 'stylesheet';
+    l.href = 'style.css?v=' + Date.now();
+    document.head.appendChild(l);
+  })();</script>
 </head>
 <body>
 
@@ -178,9 +184,11 @@
       view: 'spine'
     };
     (function(){
-      // Cache-bust only on localhost / 127.0.0.1 — production should use normal browser caching.
-      var isDev = location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.protocol === 'file:';
-      var suffix = isDev ? ('?t=' + Date.now()) : '';
+      // Always cache-bust. HTML is uncached (max-age=0 in _headers), and we
+      // update the atlas more than once a day; stale JS has already bitten us
+      // once (old i18n missing a new key → raw key names appeared in UI).
+      // The page itself is small; re-fetching JS on every load is fine.
+      var suffix = '?v=' + Date.now();
       var load = function(src){
         return new Promise(function(res){
           var s = document.createElement('script');
