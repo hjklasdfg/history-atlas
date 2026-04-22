@@ -15,7 +15,7 @@ const SPAN       = END_YEAR - START_YEAR;
 const DENSITY_MAP = {
   compact: 0.22,   // px per year
   normal:  0.42,
-  open:    0.80,
+  open:    1.60,
 };
 
 const BAND_HEIGHT = 190;   // each region band height (px)
@@ -34,7 +34,7 @@ const RIDGE_SCALE  = 10;         // scale denominator: pixel_h = (sumW / RIDGE_S
 const SPINE_DENSITY_MAP = {
   compact: 0.14,   // ~770px total
   normal:  0.28,   // ~1540px total
-  open:    0.55,   // ~3025px total
+  open:    1.20,   // ~6600px total — "really stretched out"
 };
 const SPINE_WIDTH      = 64;       // center spine track width (for ticks + events)
 const SPINE_EVENT_GUTTER = 200;    // dedicated event-label zone between spine and civ columns
@@ -328,16 +328,19 @@ function buildMinimap() {
     tip.style.top = (e.clientY - inner.top) + 'px';
     tip.classList.add('open');
   };
-  mm.addEventListener('mousedown', e => {
+  // Pointer events → one path for mouse + touch. On touch the minimap is hidden
+  // anyway at ≤900px, but this keeps behavior consistent on tablets/trackpads.
+  mm.addEventListener('pointerdown', e => {
     dragging = true;
     jumpToEvent(e);
     showTooltip(e);
     e.preventDefault();
   });
-  mm.addEventListener('mousemove', e => { showTooltip(e); });
-  mm.addEventListener('mouseleave', () => { mm.querySelector('.mm-tooltip').classList.remove('open'); });
-  window.addEventListener('mousemove', e => { if (dragging) { jumpToEvent(e); showTooltip(e); } });
-  window.addEventListener('mouseup', () => { dragging = false; });
+  mm.addEventListener('pointermove', e => { showTooltip(e); });
+  mm.addEventListener('pointerleave', () => { mm.querySelector('.mm-tooltip').classList.remove('open'); });
+  window.addEventListener('pointermove', e => { if (dragging) { jumpToEvent(e); showTooltip(e); } });
+  window.addEventListener('pointerup', () => { dragging = false; });
+  window.addEventListener('pointercancel', () => { dragging = false; });
 
   return mm;
 }
@@ -393,6 +396,13 @@ function renderMinimapCanvas() {
     ctx.fillRect(0, yA, W, yB - yA);
   });
 
+  // Theme-aware canvas palette — archival uses warm gold, modern uses cool blue.
+  const isModern = document.body.dataset.theme === 'modern';
+  const bar      = isModern ? '111,179,217' : '200,162,76';
+  const axisBar  = isModern ? '111,179,217' : '200,162,76';
+  const tickBar  = isModern ? '190,210,230' : '220,200,150';
+  const labelBar = isModern ? '170,195,225' : '200,180,130';
+
   // Density bars — drawn from LEFT edge of the strip toward the right.
   // Gamma curve so moderate-density eras don't flatten out.
   for (let r = 0; r < H; r++) {
@@ -400,7 +410,7 @@ function renderMinimapCanvas() {
     const gv = Math.pow(v, 0.55);
     const barW = Math.max(1, Math.round(gv * (W - 4)));
     const alpha = 0.18 + gv * 0.78;
-    ctx.fillStyle = `rgba(200, 162, 76, ${alpha.toFixed(3)})`;
+    ctx.fillStyle = `rgba(${bar}, ${alpha.toFixed(3)})`;
     ctx.fillRect(2, r, barW, 1);
   }
 
@@ -416,7 +426,7 @@ function renderMinimapCanvas() {
   ctx.font = '8px "JetBrains Mono", monospace';
   eraMarks.forEach(m => {
     const y = (m.y - START_YEAR) / SPAN * H;
-    ctx.strokeStyle = m.y === 0 ? 'rgba(200,162,76,0.75)' : 'rgba(220,200,150,0.20)';
+    ctx.strokeStyle = m.y === 0 ? `rgba(${axisBar},0.75)` : `rgba(${tickBar},0.20)`;
     ctx.lineWidth = 1;
     if (m.y === 0) { ctx.setLineDash([2, 2]); } else { ctx.setLineDash([]); }
     ctx.beginPath();
@@ -424,7 +434,7 @@ function renderMinimapCanvas() {
     ctx.lineTo(W, y + 0.5);
     ctx.stroke();
     ctx.setLineDash([]);
-    ctx.fillStyle = m.y === 0 ? 'rgba(200,162,76,0.85)' : 'rgba(200,180,130,0.42)';
+    ctx.fillStyle = m.y === 0 ? `rgba(${axisBar},0.85)` : `rgba(${labelBar},0.42)`;
     ctx.fillText(m.label, 2, y - 1.5);
   });
 }
@@ -1716,13 +1726,21 @@ stageInner.addEventListener('mouseout', e => {
 });
 
 // ———————————— PAN + ZOOM ————————————
+// Pointer events unify mouse / touch / pen — one code path drives both desktop
+// drag and mobile finger-pan. `touch-action: none` on .stage (in CSS) is what
+// prevents iOS from intercepting the gesture as a page scroll.
 let lastMouseX = 0;
-stage.addEventListener('mousedown', e => {
+let _activePointerId = null;
+stage.addEventListener('pointerdown', e => {
   if (e.target.closest('.civ-block') || e.target.closest('.event-label') ||
       e.target.closest('.spine-leaf') || e.target.closest('.spine-event') ||
       e.target.closest('.ridge-peak')) return;
-  // Prevent the browser from starting a text-selection sweep when the drag
-  // originates inside the canvas. We handle this as a pan, not a selection.
+  // Only track one pointer at a time — second finger is ignored so pinch-zoom
+  // gestures (if any) don't fight our pan logic.
+  if (_activePointerId !== null) return;
+  _activePointerId = e.pointerId;
+  // Prevent the browser from starting a text-selection sweep / native scroll
+  // when the drag originates inside the canvas.
   e.preventDefault();
   state.dragging = true;
   state.dragMoved = false;
@@ -1735,9 +1753,9 @@ stage.addEventListener('mousedown', e => {
   stage.style.cursor = 'grabbing';
   document.body.classList.add('is-panning');
 });
-window.addEventListener('mousemove', e => {
+window.addEventListener('pointermove', e => {
   lastMouseX = e.clientX;
-  if (!state.dragging) return;
+  if (!state.dragging || e.pointerId !== _activePointerId) return;
   state.dragMoved = true;
   if (state.view === 'spine') {
     state.offsetY = state.dragStartOffset + (e.clientY - state.dragStart);
@@ -1749,16 +1767,20 @@ window.addEventListener('mousemove', e => {
   applyTransform();
   updateNow(e.clientX, e.clientY);
 });
-window.addEventListener('mouseup', e => {
-  if (state.dragging && !state.dragMoved) {
-    // A click without drag snaps the year indicator to the click position.
+function _endPan(e) {
+  if (e && e.pointerId !== _activePointerId) return;
+  if (state.dragging && !state.dragMoved && e && e.clientX != null) {
+    // A tap without drag snaps the year indicator to the tap position.
     updateNow(e.clientX, e.clientY);
   }
   state.dragging = false;
   state.dragMoved = false;
+  _activePointerId = null;
   stage.style.cursor = '';
   document.body.classList.remove('is-panning');
-});
+}
+window.addEventListener('pointerup', _endPan);
+window.addEventListener('pointercancel', _endPan);
 
 stage.addEventListener('wheel', e => {
   e.preventDefault();
@@ -1882,7 +1904,11 @@ function updateNow(clientX, clientY) {
 // ———————————— TWEAKS ————————————
 function setTweak(key, val) {
   state[key] = val;
-  if (key === 'theme') document.body.dataset.theme = val;
+  if (key === 'theme') {
+    document.body.dataset.theme = val;
+    // Repaint minimap canvas so the density bars pick up the new palette.
+    if (typeof renderMinimapCanvas === 'function') renderMinimapCanvas();
+  }
   if (key === 'density') {
     const oldP = state.pxPerYear;
     const dmap = state.view === 'spine' ? SPINE_DENSITY_MAP : DENSITY_MAP;

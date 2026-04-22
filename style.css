@@ -223,6 +223,11 @@ body[data-theme='modern'] .mast-mark { font-style: normal; font-weight: 600; let
   -webkit-user-select: none;
   -moz-user-select: none;
   user-select: none;
+  /* iOS / Android: claim all touch gestures so the browser doesn't swallow
+     finger-pan as page scroll or page-zoom. Our JS handles the pan itself. */
+  touch-action: none;
+  -webkit-overflow-scrolling: auto;
+  -webkit-touch-callout: none;
 }
 .stage:active { cursor: grabbing; }
 /* While actively panning, suppress selection everywhere so mouse drift into
@@ -357,7 +362,20 @@ body[data-theme='modern'] .axis-label.era { font-style: normal; font-weight: 500
 .mm-tooltip b { display: block; font-family: var(--mono, monospace); font-size: 11px; color: var(--gold); letter-spacing: 0.06em; margin-bottom: 2px; }
 .mm-tooltip em { font-style: normal; font-size: 10.5px; color: var(--ink-3); letter-spacing: 0.04em; }
 body[data-theme='modern'] .mm-tooltip b { font-family: var(--sans); }
-body[data-theme='modern'] .minimap { background: rgba(230, 228, 222, 0.65); }
+/* Modern theme is ALSO a dark theme (cool palette), not a light one — so keep
+   the minimap bg dark, just cooler-tinted than archival. Previous 230/228/222
+   cream value created a glaring light rectangle on the dark page. */
+body[data-theme='modern'] .minimap {
+  background: rgba(10, 14, 26, 0.62);
+  border-color: rgba(120, 160, 210, 0.22);
+}
+body[data-theme='modern'] .minimap:hover { border-color: var(--gold-dim); }
+body[data-theme='modern'] .mm-viewport {
+  background: rgba(111, 179, 217, 0.10);
+  border-top-color: var(--gold);
+  border-bottom-color: var(--gold);
+  box-shadow: 0 0 8px rgba(111,179,217,0.22) inset;
+}
 body[data-theme='modern'] .mm-label,
 body[data-theme='modern'] .mm-tooltip em { color: var(--ink-2); }
 
@@ -1619,3 +1637,74 @@ body[data-view='spine'] .now-indicator {
   border-top: 1px dashed var(--gold);
   border-left: none;
 }
+
+/* ================== MOBILE / PHONE BREAKPOINT ==================
+   Below ~700 px the masthead can't fit all its controls at once. We
+   (1) shrink/hide decorative bits, (2) let the tools row scroll horizontally,
+   (3) re-anchor the tweaks / detail panels so they don't overflow the screen.
+   Touch gestures for panning are enabled everywhere via `touch-action: none`
+   on .stage (see main stage rule). */
+@media (max-width: 700px) {
+  .masthead {
+    height: 56px;
+    padding: 0 12px;
+    gap: 10px;
+  }
+  .mast-title { flex-shrink: 0; gap: 6px; }
+  .mast-mark { font-size: 17px; letter-spacing: 0; }
+  .mast-sub { display: none; }
+
+  .mast-tools {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding-bottom: 2px;
+  }
+  .mast-tools::-webkit-scrollbar { display: none; }
+  .mast-tools > * { flex-shrink: 0; }
+
+  .mast-divider { display: none; }
+
+  .search-wrap { width: 128px; }
+  .search-wrap input { font-size: 12px; padding: 6px 8px 6px 22px; }
+  .search-results { width: calc(100vw - 24px); left: auto; right: 0; }
+
+  .filter-region { gap: 1px; }
+  .filter-region button { padding: 4px 7px; font-size: 10.5px; letter-spacing: 0.04em; }
+
+  .zoom-btns button { width: 26px; height: 26px; font-size: 13px; }
+  .lang-switch button { padding: 5px 8px; font-size: 10px; }
+
+  /* Stage top offset matches shorter masthead */
+  body[data-view='spine'] .stage { top: 56px; padding-top: 40px; left: 0; }
+  .now-year { top: 62px; }
+
+  /* Tweaks panel: slide from bottom instead of side, leave room for axis */
+  .tweaks {
+    left: 8px !important;
+    right: 8px !important;
+    top: auto !important;
+    bottom: 12px !important;
+    width: auto !important;
+    max-width: none !important;
+    max-height: 58vh;
+    overflow-y: auto;
+  }
+
+  /* Detail panel: near full-width overlay on phones */
+  .detail-panel {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Hero: fit short phone screens */
+  .hero-title { font-size: 52px !important; line-height: 1.02 !important; }
+  .hero-title-zh { font-size: 14px !important; letter-spacing: 0.4em !important; }
+  .hero-desc { font-size: 13px !important; padding: 0 16px; }
+  .hero-kicker { font-size: 10px !important; }
+  .hero-inner { padding: 0 8px; }
+}
+
