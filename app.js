@@ -96,6 +96,7 @@ const STR = {
   en: {
     hero_kicker: 'A Visual Almanac of Civilizations',
     hero_title_a: 'History', hero_title_b: 'Atlas',
+    hero_title_zh_sub: 'W O R L D   H I S T O R Y   S K Y L I N E',
     hero_desc: 'Fifty civilizations rising and falling in parallel across five thousand years. Not a timeline, but a skyline — of kingdoms whose lives overlapped, whose peaks rose and faded together.',
     hero_cta: 'Enter the Atlas',
     mm_a: 'History', mm_b: 'Atlas',
@@ -121,6 +122,7 @@ const STR = {
   zh: {
     hero_kicker: '世界文明影像年鉴',
     hero_title_a: '历史', hero_title_b: '天际线',
+    hero_title_zh_sub: '世 界 历 史 天 际 线',
     hero_desc: '五千年间，五十个文明并肩起落。这不是一条时间线，而是一道天际线——彼此交叠的王朝，各自攀上又褪下的巅峰。',
     hero_cta: '进入图册',
     mm_a: '历史', mm_b: '天际线',
@@ -2058,10 +2060,14 @@ setTimeout(() => {
 }, 100);
 
 // ———————————— LANG SWITCH ————————————
+// Both the hero and the masthead carry a .lang-switch — match by data-lang
+// (not object identity) so clicking in either place keeps both in sync.
 document.querySelectorAll('.lang-switch button').forEach(b => {
   b.addEventListener('click', () => {
     state.lang = b.dataset.lang;
-    document.querySelectorAll('.lang-switch button').forEach(x => x.classList.toggle('active', x === b));
+    document.querySelectorAll('.lang-switch button').forEach(x => {
+      x.classList.toggle('active', x.dataset.lang === state.lang);
+    });
     applyI18n();
     renderRegionLabels();
     renderRegionFilter();

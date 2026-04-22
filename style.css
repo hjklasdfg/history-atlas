@@ -1038,6 +1038,34 @@ body[data-theme='modern'] .tw-title { font-family: var(--sans); font-style: norm
   transition: opacity 0.8s, visibility 0s 0.8s;
 }
 .hero.hidden { opacity: 0; visibility: hidden; }
+/* Language switch on the hero page — same visual treatment as the masthead
+   lang-switch, just positioned in the top-right corner of the overlay so
+   first-time (especially English-preferring) visitors can pick their
+   language before entering the atlas. */
+.hero-lang {
+  position: absolute;
+  top: 28px;
+  right: 32px;
+  z-index: 2;
+  /* Slightly softer than the masthead copy so it doesn't compete with the
+     centered title block. */
+  border-color: rgba(200, 162, 76, 0.28);
+  background: rgba(14, 19, 30, 0.4);
+  backdrop-filter: blur(4px);
+}
+.hero-lang button {
+  font-size: 11px;
+  padding: 7px 12px;
+  letter-spacing: 0.2em;
+}
+.hero-lang button.active {
+  background: rgba(200, 162, 76, 0.18);
+  color: var(--gold);
+}
+@media (max-width: 700px) {
+  .hero-lang { top: 16px; right: 14px; }
+  .hero-lang button { font-size: 10px; padding: 5px 9px; }
+}
 .hero-inner {
   max-width: 680px;
   padding: 0 40px;
