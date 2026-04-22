@@ -15,7 +15,7 @@ const SPAN       = END_YEAR - START_YEAR;
 const DENSITY_MAP = {
   compact: 0.22,   // px per year
   normal:  0.42,
-  open:    2.40,   // ~13,260px total — maximum stretch
+  open:    3.50,   // matches the zoom-in hard cap (see zoomStep / wheel zoom)
 };
 
 const BAND_HEIGHT = 190;   // each region band height (px)
@@ -34,7 +34,7 @@ const RIDGE_SCALE  = 10;         // scale denominator: pixel_h = (sumW / RIDGE_S
 const SPINE_DENSITY_MAP = {
   compact: 0.14,   // ~770px total
   normal:  0.28,   // ~1540px total
-  open:    2.20,   // ~12,155px total — maximum stretch
+  open:    3.50,   // matches the zoom-in hard cap (see zoomStep / wheel zoom)
 };
 const SPINE_WIDTH      = 64;       // center spine track width (for ticks + events)
 const SPINE_EVENT_GUTTER = 200;    // dedicated event-label zone between spine and civ columns
@@ -1596,25 +1596,49 @@ function openEventDetail(ev) {
   writeDeepLink({ y: ev.y });
 }
 
+// Close / dismiss semantics:
+//   1st dismiss (ESC / ✕ / outside-click) → close panel, KEEP highlight so the
+//     user can compare concurrent civilizations with the panel out of the way.
+//   2nd dismiss (ESC or outside-click with panel already closed) → clear highlight.
+// This avoids the previous inconsistency where ✕ + outside-click wiped the
+// highlight but ESC didn't.
+function _hasHighlight() {
+  return !!document.querySelector('.spine-leaf.selected, .spine-leaf.concurrent, .spine-leaf.offbeat');
+}
 el('dpClose').addEventListener('click', () => {
   detailPanel.classList.remove('open');
-  clearParallelHighlight();
   writeDeepLink({});
 });
 document.addEventListener('click', e => {
-  if (!detailPanel.classList.contains('open')) return;
+  // Ignore clicks inside panel / on clickable civ surfaces / search / tweaks.
   if (detailPanel.contains(e.target)) return;
   if (e.target.closest('.spine-leaf, .civ-block, .ridge-civ, .swim-civ, .ridge-peak, .ridge-hit, .spine-event, .search-results, #searchInput, .tweaks')) return;
-  detailPanel.classList.remove('open');
-  clearParallelHighlight();
-  writeDeepLink({});
+  if (detailPanel.classList.contains('open')) {
+    // Stage 1: close panel but leave the parallel highlight so the user can
+    // see overlapping civs without the panel blocking the right column.
+    detailPanel.classList.remove('open');
+    writeDeepLink({});
+    return;
+  }
+  if (_hasHighlight()) {
+    // Stage 2: panel already closed → a second outside-click clears highlight.
+    clearParallelHighlight();
+  }
 });
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
   if (detailPanel.classList.contains('open')) {
     detailPanel.classList.remove('open');
+    writeDeepLink({});
     e.preventDefault();
-  } else if (searchResults.classList.contains('open')) {
+    return;
+  }
+  if (_hasHighlight()) {
+    clearParallelHighlight();
+    e.preventDefault();
+    return;
+  }
+  if (searchResults.classList.contains('open')) {
     searchResults.classList.remove('open');
   }
 });
@@ -1726,27 +1750,25 @@ stageInner.addEventListener('mouseout', e => {
 });
 
 // ———————————— PAN + ZOOM ————————————
-// Pointer events unify mouse / touch / pen — one code path drives both desktop
-// drag and mobile finger-pan. `touch-action: none` on .stage (in CSS) is what
-// prevents iOS from intercepting the gesture as a page scroll, and
-// `setPointerCapture` is what routes subsequent move/up events back to the
-// stage even if the finger leaves the element (which iOS Safari otherwise
-// handles inconsistently).
+// Mouse / pen go through pointer events. Touch is handled by dedicated
+// touchstart/move/end listeners below — iOS Safari's pointer-event
+// implementation is flaky around preventDefault timing, so the native
+// touch API is far more reliable on phones.
 let lastMouseX = 0;
-let _activePointerId = null;
+function _excludedDragTarget(target) {
+  if (!target || !target.closest) return false;
+  return !!(
+    target.closest('.civ-block') ||
+    target.closest('.event-label') ||
+    target.closest('.spine-leaf') ||
+    target.closest('.spine-event') ||
+    target.closest('.ridge-peak')
+  );
+}
 stage.addEventListener('pointerdown', e => {
-  if (e.target.closest('.civ-block') || e.target.closest('.event-label') ||
-      e.target.closest('.spine-leaf') || e.target.closest('.spine-event') ||
-      e.target.closest('.ridge-peak')) return;
-  // Only track one pointer at a time — second finger is ignored so pinch-zoom
-  // gestures (if any) don't fight our pan logic.
-  if (_activePointerId !== null) return;
-  _activePointerId = e.pointerId;
-  // Capture so all pointer events for this id come back to .stage — required
-  // on iOS Safari for reliable touch-drag tracking.
-  try { stage.setPointerCapture(e.pointerId); } catch (_) { /* noop */ }
-  // Prevent the browser from starting a text-selection sweep / native scroll
-  // when the drag originates inside the canvas.
+  // Skip touch — touchstart below is the authoritative path for fingers.
+  if (e.pointerType === 'touch') return;
+  if (_excludedDragTarget(e.target)) return;
   e.preventDefault();
   state.dragging = true;
   state.dragMoved = false;
@@ -1759,10 +1781,10 @@ stage.addEventListener('pointerdown', e => {
   stage.style.cursor = 'grabbing';
   document.body.classList.add('is-panning');
 });
-// Listeners on stage (not window) since setPointerCapture routes events here.
-stage.addEventListener('pointermove', e => {
+window.addEventListener('pointermove', e => {
+  if (e.pointerType === 'touch') return;
   lastMouseX = e.clientX;
-  if (!state.dragging || e.pointerId !== _activePointerId) return;
+  if (!state.dragging) return;
   state.dragMoved = true;
   if (state.view === 'spine') {
     state.offsetY = state.dragStartOffset + (e.clientY - state.dragStart);
@@ -1774,30 +1796,66 @@ stage.addEventListener('pointermove', e => {
   applyTransform();
   updateNow(e.clientX, e.clientY);
 });
-function _endPan(e) {
-  if (e && e.pointerId !== _activePointerId) return;
+function _endMousePan(e) {
+  if (e && e.pointerType === 'touch') return;
   if (state.dragging && !state.dragMoved && e && e.clientX != null) {
-    // A tap without drag snaps the year indicator to the tap position.
     updateNow(e.clientX, e.clientY);
   }
   state.dragging = false;
   state.dragMoved = false;
-  try { stage.releasePointerCapture(_activePointerId); } catch (_) { /* noop */ }
-  _activePointerId = null;
   stage.style.cursor = '';
   document.body.classList.remove('is-panning');
 }
-stage.addEventListener('pointerup', _endPan);
-stage.addEventListener('pointercancel', _endPan);
-stage.addEventListener('lostpointercapture', () => {
-  // If the browser yanks capture (e.g. iOS gesture recognizer), reset cleanly
-  // so the next tap isn't ignored by the "already active" guard.
+window.addEventListener('pointerup', _endMousePan);
+window.addEventListener('pointercancel', _endMousePan);
+
+// ———————————— TOUCH PAN (iOS-safe) ————————————
+// Using the raw touch API avoids iOS's pointer-event quirks. `touch-action: none`
+// on .stage (in CSS) keeps Safari from stealing the gesture as a page-scroll
+// before our handler can call preventDefault. Single-finger pans; we don't
+// fight a two-finger pinch (browser won't zoom either, since touch-action:none,
+// but we just ignore multi-touch rather than interpret it).
+const _touch = { active: false, sx: 0, sy: 0, ox: 0, oy: 0, moved: false };
+stage.addEventListener('touchstart', e => {
+  if (e.touches.length !== 1) { _touch.active = false; return; }
+  const t = e.touches[0];
+  if (_excludedDragTarget(e.target)) return;
+  e.preventDefault();
+  _touch.active = true;
+  _touch.moved = false;
+  _touch.sx = t.clientX;
+  _touch.sy = t.clientY;
+  _touch.ox = state.offsetX;
+  _touch.oy = state.offsetY;
+  state.dragging = true;
+  state.dragMoved = false;
+  document.body.classList.add('is-panning');
+}, { passive: false });
+stage.addEventListener('touchmove', e => {
+  if (!_touch.active || e.touches.length !== 1) return;
+  e.preventDefault();
+  const t = e.touches[0];
+  _touch.moved = true;
+  state.dragMoved = true;
+  const dx = t.clientX - _touch.sx;
+  const dy = t.clientY - _touch.sy;
+  if (state.view === 'spine') {
+    state.offsetY = _touch.oy + dy;
+    state.offsetX = _touch.ox + dx;
+  } else {
+    state.offsetX = _touch.ox + dx;
+  }
+  clampOffset();
+  applyTransform();
+}, { passive: false });
+function _endTouchPan() {
+  _touch.active = false;
   state.dragging = false;
   state.dragMoved = false;
-  _activePointerId = null;
-  stage.style.cursor = '';
   document.body.classList.remove('is-panning');
-});
+}
+stage.addEventListener('touchend', _endTouchPan);
+stage.addEventListener('touchcancel', _endTouchPan);
 
 stage.addEventListener('wheel', e => {
   e.preventDefault();
