@@ -15,7 +15,7 @@ const SPAN       = END_YEAR - START_YEAR;
 const DENSITY_MAP = {
   compact: 0.22,   // px per year
   normal:  0.42,
-  open:    1.60,
+  open:    2.40,   // ~13,260px total — maximum stretch
 };
 
 const BAND_HEIGHT = 190;   // each region band height (px)
@@ -34,7 +34,7 @@ const RIDGE_SCALE  = 10;         // scale denominator: pixel_h = (sumW / RIDGE_S
 const SPINE_DENSITY_MAP = {
   compact: 0.14,   // ~770px total
   normal:  0.28,   // ~1540px total
-  open:    1.20,   // ~6600px total — "really stretched out"
+  open:    2.20,   // ~12,155px total — maximum stretch
 };
 const SPINE_WIDTH      = 64;       // center spine track width (for ticks + events)
 const SPINE_EVENT_GUTTER = 200;    // dedicated event-label zone between spine and civ columns
@@ -1728,7 +1728,10 @@ stageInner.addEventListener('mouseout', e => {
 // ———————————— PAN + ZOOM ————————————
 // Pointer events unify mouse / touch / pen — one code path drives both desktop
 // drag and mobile finger-pan. `touch-action: none` on .stage (in CSS) is what
-// prevents iOS from intercepting the gesture as a page scroll.
+// prevents iOS from intercepting the gesture as a page scroll, and
+// `setPointerCapture` is what routes subsequent move/up events back to the
+// stage even if the finger leaves the element (which iOS Safari otherwise
+// handles inconsistently).
 let lastMouseX = 0;
 let _activePointerId = null;
 stage.addEventListener('pointerdown', e => {
@@ -1739,6 +1742,9 @@ stage.addEventListener('pointerdown', e => {
   // gestures (if any) don't fight our pan logic.
   if (_activePointerId !== null) return;
   _activePointerId = e.pointerId;
+  // Capture so all pointer events for this id come back to .stage — required
+  // on iOS Safari for reliable touch-drag tracking.
+  try { stage.setPointerCapture(e.pointerId); } catch (_) { /* noop */ }
   // Prevent the browser from starting a text-selection sweep / native scroll
   // when the drag originates inside the canvas.
   e.preventDefault();
@@ -1753,7 +1759,8 @@ stage.addEventListener('pointerdown', e => {
   stage.style.cursor = 'grabbing';
   document.body.classList.add('is-panning');
 });
-window.addEventListener('pointermove', e => {
+// Listeners on stage (not window) since setPointerCapture routes events here.
+stage.addEventListener('pointermove', e => {
   lastMouseX = e.clientX;
   if (!state.dragging || e.pointerId !== _activePointerId) return;
   state.dragMoved = true;
@@ -1775,12 +1782,22 @@ function _endPan(e) {
   }
   state.dragging = false;
   state.dragMoved = false;
+  try { stage.releasePointerCapture(_activePointerId); } catch (_) { /* noop */ }
   _activePointerId = null;
   stage.style.cursor = '';
   document.body.classList.remove('is-panning');
 }
-window.addEventListener('pointerup', _endPan);
-window.addEventListener('pointercancel', _endPan);
+stage.addEventListener('pointerup', _endPan);
+stage.addEventListener('pointercancel', _endPan);
+stage.addEventListener('lostpointercapture', () => {
+  // If the browser yanks capture (e.g. iOS gesture recognizer), reset cleanly
+  // so the next tap isn't ignored by the "already active" guard.
+  state.dragging = false;
+  state.dragMoved = false;
+  _activePointerId = null;
+  stage.style.cursor = '';
+  document.body.classList.remove('is-panning');
+});
 
 stage.addEventListener('wheel', e => {
   e.preventDefault();
